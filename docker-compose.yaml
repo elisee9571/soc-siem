@@ -1,0 +1,75 @@
+version: '3.9'
+
+services:
+  wazuh-manager:
+    image: wazuh/wazuh-manager:4.9.1
+    container_name: wazuh-manager
+    platform: linux/amd64
+    environment:
+      - WAZUH_MANAGER_NAME=wazuh-manager
+    volumes:
+      - wazuh-manager-data:/var/ossec/data
+    networks:
+      - wazuh-net
+    ports:
+      - "1514:1514/udp" # Port pour la communication avec les agents
+      - "55000:55000/tcp" # Port pour la communication avec l'API
+
+  wazuh-indexer:
+    image: wazuh/wazuh-indexer:4.9.1
+    container_name: wazuh-indexer
+    platform: linux/amd64
+    environment:
+      - DISCOVERY_HOSTS=wazuh-indexer
+    volumes:
+      - wazuh-indexer-data:/usr/share/opensearch/data
+    networks:
+      - wazuh-net
+    ports:
+      - "9200:9200" # Port pour accéder à OpenSearch
+    depends_on:
+      - wazuh-manager
+
+  wazuh-dashboard:
+    image: wazuh/wazuh-dashboard:4.9.1
+    container_name: wazuh-dashboard
+    platform: linux/amd64
+    environment:
+      - DASHBOARD_SERVER_HOST=wazuh-dashboard
+    ports:
+      - "5601:5601" # Port pour accéder à l'interface web
+    networks:
+      - wazuh-net
+    depends_on:
+      - wazuh-manager
+      - wazuh-indexer
+
+  wazuh-agent-1:
+    build:
+      context: .docker/agent
+    container_name: wazuh-agent-1
+    environment:
+      - WAZUH_MANAGER_IP=wazuh-manager
+    networks:
+      - wazuh-net
+    depends_on:
+      - wazuh-manager
+
+  wazuh-agent-2:
+    build:
+      context: .docker/agent
+    container_name: wazuh-agent-2
+    environment:
+      - WAZUH_MANAGER_IP=wazuh-manager
+    networks:
+      - wazuh-net
+    depends_on:
+      - wazuh-manager
+
+networks:
+  wazuh-net:
+    driver: bridge
+
+volumes:
+  wazuh-manager-data:
+  wazuh-indexer-data:
